@@ -32,7 +32,7 @@ namespace AutoScience {
                 GameEvents.onVesselWasModified.Add(vessel => vessel.FindVesselModuleImplementing<AutoScienceVesselModule>().Rebuild());
 
                 // set up toolbar icon and behaviour
-                ToolbarIconTexture = GameDatabase.Instance.GetTexture("Auto Science/Icons/AutoScience", false);
+                ToolbarIconTexture = GameDatabase.Instance.GetTexture("AutoScience/Icons/AutoScience", false);
                 ToolbarIcon = ApplicationLauncher.Instance.AddModApplication(ToggleGUI, ToggleGUI, null, null, null, null,
                     ApplicationLauncher.AppScenes.ALWAYS, ToolbarIconTexture);
             }

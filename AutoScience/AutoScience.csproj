@@ -57,6 +57,6 @@
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>copy "$(TargetPath)" "D:\Games\Kerbal Space Program Mod Testing\GameData\Auto Science"</PostBuildEvent>
+    <PostBuildEvent>copy "$(TargetPath)" "D:\Games\Kerbal Space Program Mod Testing\GameData\AutoScience"</PostBuildEvent>
   </PropertyGroup>
 </Project>
