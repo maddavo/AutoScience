@@ -44,6 +44,9 @@ namespace AutoScience {
         // Use HashSet to enforce uniqueness and O(1) insert
         HashSet<LocationData> QueuedBiomes = new HashSet<LocationData>();
 
+        // Avoid flooding the log when a modded experiment cannot produce a stock ScienceSubject.
+        HashSet<String> MissingScienceSubjects = new HashSet<String>();
+
         // Does this vessel have a location and potentially QueuedBiomes? (generate on first update frame)
         public bool initialized = false;
 
@@ -216,6 +219,9 @@ namespace AutoScience {
         public void TryScience(ModuleScienceExperiment e, ExperimentSituations s, CelestialBody b, String Biome) {
             if (!e || !e.vessel || !Containers.Any()) return; // this should never fail but better safe than sorry
 
+            // Some modded science modules can exist without a valid experiment definition.
+            if (e.experiment == null) return;
+
             // Don't cheat the goo/materials bay experiments
             if (!e.rerunnable && !HasScientist) return;
 
@@ -246,6 +252,22 @@ namespace AutoScience {
 
             // Generate science data
             ScienceSubject subject = GetScienceSubject(e.experiment, s, b, Biome);
+            if (subject == null) {
+                String bodyName = b == null ? "<unknown body>" : b.bodyName;
+                String warningKey = String.Format("{0}|{1}|{2}|{3}", e.experiment.id, s, bodyName, Biome);
+
+                if (MissingScienceSubjects.Add(warningKey)) {
+                    Debug.LogWarning(String.Format(
+                        "[AutoScience] KSP could not create a science subject for experiment '{0}' in {1} at {2} ({3}); skipping it.",
+                        e.experiment.id,
+                        s,
+                        bodyName,
+                        String.IsNullOrEmpty(Biome) ? "no biome" : Biome));
+                }
+
+                return;
+            }
+
             ScienceData data = new ScienceData(e.experiment.baseValue * subject.dataScale, e.xmitDataScalar, 0f, subject.id, subject.title);
 
             // Don't do zero-value science (TODO: toolbar option)
@@ -288,7 +310,7 @@ namespace AutoScience {
         private ScienceSubject GetScienceSubject(ScienceExperiment e, ExperimentSituations s, CelestialBody b, String Biome) {
             return ResearchAndDevelopment.GetExperimentSubject(
                     e,
-                    ScienceUtil.GetExperimentSituation(Vessel),
+                    s,
                     b,
                     e.BiomeIsRelevantWhile(s) ? Biome : String.Empty,
                     null);
