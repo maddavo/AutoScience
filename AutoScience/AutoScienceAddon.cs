@@ -58,7 +58,10 @@ namespace AutoScience {
                 LauncherReadyEventRegistered = false;
             }
 
-            if (ToolbarIcon != null && ApplicationLauncher.Ready && ApplicationLauncher.Instance != null) {
+            // KSP can mark the launcher as not ready before disabling scene addons.
+            // The launcher instance is still able to remove the button at that point;
+            // requiring Ready here leaves stale buttons behind after every scene change.
+            if (ToolbarIcon != null && ApplicationLauncher.Instance != null) {
                 ApplicationLauncher.Instance.RemoveModApplication(ToolbarIcon);
             }
 
