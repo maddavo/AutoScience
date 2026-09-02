@@ -8,10 +8,13 @@ namespace AutoScience {
     class AutoScienceAddon : MonoBehaviour {
 
         // Settings/GUI stuff
-        private static Texture2D ToolbarIconTexture = null;
-        private static ApplicationLauncherButton ToolbarIcon = null;
+        private Texture2D ToolbarIconTexture = null;
+        private ApplicationLauncherButton ToolbarIcon = null;
         private static PopupDialog DialogWindow = null;
         private static readonly string SettingsPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) + "/AutoScience.cfg";
+
+        private bool VesselModifiedEventRegistered = false;
+        private bool LauncherReadyEventRegistered = false;
 
         // Mod settings saved in cfg alongside dll (KSPAddon can't put them in savefile - change?)
         public static bool ModActive = true;
@@ -27,19 +30,68 @@ namespace AutoScience {
             if (HighLogic.LoadedSceneIsFlight || HighLogic.LoadedScene == GameScenes.SPACECENTER || HighLogic.LoadedScene == GameScenes.TRACKSTATION) {
                 // Load settings from cfg
                 Load();
-                
-                // Rebuild vessel info whenever it's modified (Docking, Decoupling, Crashing, EVA construction etc)
-                GameEvents.onVesselWasModified.Add(vessel => vessel.FindVesselModuleImplementing<AutoScienceVesselModule>().Rebuild());
 
-                // set up toolbar icon and behaviour
-                ToolbarIconTexture = GameDatabase.Instance.GetTexture("AutoScience/Icons/AutoScience", false);
-                ToolbarIcon = ApplicationLauncher.Instance.AddModApplication(ToggleGUI, ToggleGUI, null, null, null, null,
-                    ApplicationLauncher.AppScenes.ALWAYS, ToolbarIconTexture);
+                // Rebuild vessel info whenever it's modified (Docking, Decoupling, Crashing, EVA construction etc)
+                if (GameEvents.onVesselWasModified != null) {
+                    GameEvents.onVesselWasModified.Add(OnVesselWasModified);
+                    VesselModifiedEventRegistered = true;
+                }
+
+                // Set up the toolbar icon now, or wait until KSP's launcher is ready.
+                if (ApplicationLauncher.Ready) {
+                    AddToolbarIcon();
+                } else if (GameEvents.onGUIApplicationLauncherReady != null) {
+                    GameEvents.onGUIApplicationLauncherReady.Add(OnGUIApplicationLauncherReady);
+                    LauncherReadyEventRegistered = true;
+                }
             }
         }
 
         public void OnDisable() {
-            ApplicationLauncher.Instance.RemoveModApplication(ToolbarIcon);
+            if (VesselModifiedEventRegistered && GameEvents.onVesselWasModified != null) {
+                GameEvents.onVesselWasModified.Remove(OnVesselWasModified);
+                VesselModifiedEventRegistered = false;
+            }
+
+            if (LauncherReadyEventRegistered && GameEvents.onGUIApplicationLauncherReady != null) {
+                GameEvents.onGUIApplicationLauncherReady.Remove(OnGUIApplicationLauncherReady);
+                LauncherReadyEventRegistered = false;
+            }
+
+            if (ToolbarIcon != null && ApplicationLauncher.Ready && ApplicationLauncher.Instance != null) {
+                ApplicationLauncher.Instance.RemoveModApplication(ToolbarIcon);
+            }
+
+            ToolbarIcon = null;
+        }
+
+        private void OnVesselWasModified(Vessel vessel) {
+            if (vessel == null) return;
+
+            AutoScienceVesselModule vesselModule = vessel.FindVesselModuleImplementing<AutoScienceVesselModule>();
+            if (vesselModule != null) vesselModule.Rebuild();
+        }
+
+        private void OnGUIApplicationLauncherReady() {
+            if (LauncherReadyEventRegistered && GameEvents.onGUIApplicationLauncherReady != null) {
+                GameEvents.onGUIApplicationLauncherReady.Remove(OnGUIApplicationLauncherReady);
+                LauncherReadyEventRegistered = false;
+            }
+
+            AddToolbarIcon();
+        }
+
+        private void AddToolbarIcon() {
+            if (ToolbarIcon != null || !ApplicationLauncher.Ready || ApplicationLauncher.Instance == null) return;
+
+            ToolbarIconTexture = GameDatabase.Instance.GetTexture("AutoScience/Icons/AutoScience", false);
+            if (ToolbarIconTexture == null) {
+                Debug.LogWarning("[AutoScience] Toolbar icon texture could not be loaded; automatic science remains active.");
+                return;
+            }
+
+            ToolbarIcon = ApplicationLauncher.Instance.AddModApplication(ToggleGUI, ToggleGUI, null, null, null, null,
+                ApplicationLauncher.AppScenes.ALWAYS, ToolbarIconTexture);
         }
 
         /// <summary>
